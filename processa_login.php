@@ -18,7 +18,7 @@ if( empty($_POST['email']) || empty($_POST['senha']) ) {
 }
 
 // Escapa o e-mail recebido (se necessário, por preucação).
-$email = mysqli_real_escape_string($_conexao, trim($_POST["email"]));
+$email = filter_input(INPUT_POST, 'email', FILTER_SANITIZE_EMAIL);
 
 // O e-mail recebido não é válido?
 if( !validaEmail($email) ) {
@@ -39,19 +39,18 @@ if( isset($_POST['lembrar-email']) ) {
 }
 
 // Monta a Query
-$query = sprintf("SELECT id, nome, email FROM usuarios WHERE email='%s' AND senha='%s'", $email, $senha);
-
-// Executa a Query
-$resultado = mysqli_query($_conexao, $query);
-
+$stm = $GLOBALS['pdo']->prepare("SELECT id, nome, email FROM usuarios WHERE email=:email AND senha=:senha");
+$stm->bindValue(':email', $email, PDO::PARAM_STR);
+$stm->bindValue(':senha', $senha, PDO::PARAM_STR);
+$stm->execute();
 // Se não retornou nenhum registro, é porquê o usuário não foi encontrado na tabela.
-if( mysqli_num_rows($resultado)<=0 ) {
+if($stm->rowCount() <= 0 ) {
     $_SESSION['erroLogin'] = 'Usuário não encontrado no sistema.';
     irPara($_url_retorno);   
 }
 
 // Obtêm os dados do usuário na forma de um array associativo
-$usuario = mysqli_fetch_array($resultado, MYSQLI_ASSOC);
+$usuario = $stm->fetch();
 
 // Armazena na sessão o id, nome e e-mail do usuário
 $_SESSION['usuario_id'] = $usuario["id"];

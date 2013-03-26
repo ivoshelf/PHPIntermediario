@@ -21,19 +21,20 @@ if( $id<=0 ) {
 }
 
 // Monta a Query
-$query = sprintf("
+$stm = $GLOBALS['pdo']->prepare("
     DELETE 
     FROM 
         contatos 
     WHERE
-        id_usuario=%d AND
-        id=%d", $_SESSION["usuario_id"], $id);
-
+        id_usuario=:id_usuario AND
+        id=:id");
+$stm->bindValue(':id_usuario', $_SESSION["usuario_id"]);
+$stm->bindValue(':id', $id);
 // Executa a Query
-mysqli_query($_conexao, $query);
+$retorno = $stm->execute();
 
 // Se teve sucesso, então também deleta a foto do contato (se ele tiver)
-if( mysqli_affected_rows($_conexao)>0 ) {
+if( $retorno ) {
     
     // Remove a foto do usuário da pasta de imagem (se existir)
     $foto = glob(DIR_FOTO . md5($id) . "*.{jpg,gif,png,jpeg}", GLOB_BRACE);

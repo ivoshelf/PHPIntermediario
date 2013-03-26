@@ -22,9 +22,9 @@ if( empty($_POST['email']) || empty($_POST['nome']) || empty($_POST['celular']) 
 }
 
 // Armazena os dados em variáveis escapando-os
-$nome = mysqli_real_escape_string($_conexao, $_POST['nome']);
-$email = mysqli_real_escape_string($_conexao, $_POST['email']);
-$celular = mysqli_real_escape_string($_conexao, $_POST['celular']);
+$nome = filter_input(INPUT_POST, 'nome', FILTER_SANITIZE_STRING);
+$email = filter_input(INPUT_POST, 'email', FILTER_SANITIZE_EMAIL);
+$celular = filter_input(INPUT_POST, 'celular', FILTER_SANITIZE_STRING);
 
 // O nome deve ter no mínimo 3 caracteres
 if( strlen($nome)<3 ) {
@@ -48,15 +48,7 @@ if( !validaCelular($celular) ) {
 if( !$edicao ) {
     
     // Cadastra o contato na tabela de "contatos"
-    $query = sprintf("INSERT INTO contatos(id_usuario, nome, email, celular) VALUES(%d, '%s', '%s', '%s')", $_SESSION["usuario_id"], $nome, $email, $celular);
-
-    if( !mysqli_query($_conexao, $query) ) {
-        $_SESSION['erroCadastro'] = 'Erro inesperado ao cadastrar o contato. Tente novamente.';
-        irPara($_url_retorno);    
-    }
-
-    // Armazena na variável $id_contato o id do contato recém inserido.
-    $id_contato = mysqli_insert_id($_conexao);
+    $stm = $GLOBALS['pdo']->prepare("INSERT INTO contatos(id_usuario, nome, email, celular) VALUES(:id_usuario, :nome, :email, :celular)");   
     
 }
 
@@ -66,36 +58,37 @@ if( $edicao ) {
     // Atualiza a variável $id_contato com o ID do contato que está sendo alterado
     $id_contato = (int) $_POST["id"];
     
-    // Monta o Array com os novos dados
-    $contato = array(
-        $nome,                      // Nome
-        $email,                     // E-mail
-        $celular,                   // Celular
-        $_SESSION["usuario_id"],    // Id do usuário logado
-        $id_contato                 // Id do contato a ser alterado        
-    );
-    
     // Monta a Query    
-    $query = vsprintf("
+    $stm = $GLOBALS['pdo']->prepare("
         UPDATE 
             contatos 
         SET 
-            nome='%s',
-            email='%s',
-            celular='%s'
+            nome=:nome,
+            email=:email,
+            celular=:celular
         WHERE
-            id_usuario=%d AND
-            id=%d", $contato);
-    
-    // Executa a Query
-    mysqli_query($_conexao, $query);
-    
-    // O registro foi realmente alterado?
-    if( mysqli_affected_rows($_conexao)>0 ) {
-        // Sucesso na atualização, cria uma sessão para identificar isso.
-        $_SESSION['atualizacaoOk'] = 'Dados alterados com sucesso!';         
+            id_usuario=:id_usuario AND
+            id=:id");
+    $stm->bindValue(':id', $id_contato);
+            
+}
+
+if ($stm instanceof PDOStatement) {
+    $stm->bindValue(':id_usuario', $_SESSION["usuario_id"], PDO::PARAM_INT);
+    $stm->bindValue(':nome', $nome, PDO::PARAM_STR);
+    $stm->bindValue(':email', $email, PDO::PARAM_STR);
+    $stm->bindValue(':celular', $celular, PDO::PARAM_STR);
+    $resultado = $stm->execute();
+    if ($resultado === true) {
+        if ($edicao) {
+            $_SESSION['atualizacaoOk'] = 'Dados alterados com sucesso!';  
+        }else {
+            $id_contato = $GLOBALS['pdo']->lastInsertId();
+        }
+    } else {        
+        $_SESSION['erroCadastro'] = 'Erro inesperado ao cadastrar o contato. Tente novamente.';
+        irPara($_url_retorno);
     }
-    
 }
 
 // Se uma foto foi selecionada, tenta upá-la

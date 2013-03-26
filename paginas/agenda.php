@@ -1,7 +1,7 @@
 <?php
 
     // Seleciona todos os contatos pertecentes ao usuário logado
-    $query = sprintf("
+    $stm = $GLOBALS['pdo']->prepare("
         SELECT 
             id, 
             nome, 
@@ -10,11 +10,12 @@
         FROM 
             contatos
         WHERE
-            id_usuario=%d", $_SESSION["usuario_id"]);
+            id_usuario=:id_usuario");
+    $stm->bindValue(':id_usuario', $_SESSION["usuario_id"], PDO::PARAM_INT);
 
     // Executa a Query
-    $resultado = mysqli_query($_conexao, $query);
-
+    $stm->execute();
+    $contatos = $stm->fetchAll();
 ?>
 
 <!-- Carrega os arquivos javascript -->
@@ -46,7 +47,7 @@
     </thead>
     <tbody>
         
-        <?php while( $contato = mysqli_fetch_assoc($resultado) ): ?>
+        <?php foreach( $contatos as $contato): ?>
         <tr>
             <td class="center"><img width="40" height="40" src="<?=contatoFoto($contato["id"]);?>" alt="<?=$contato["nome"];?>" /></td>
             <td><a href="<?=SITE_URL;?>/index.php?secao=cadastro&id=<?=$contato["id"];?>"><?=$contato["nome"];?></a></td>
@@ -54,7 +55,7 @@
             <td><?=$contato["celular"];?></td>
             <td class="center remover"><a title="Remover contato" href="processa_remover.php?id=<?=$contato["id"];?>"><img src="<?=SITE_URL;?>/img/remover.png" alt="" /></a></td>
         </tr>
-        <?php endwhile; ?>
+        <?php endforeach; ?>
         
     </tbody>
 </table>

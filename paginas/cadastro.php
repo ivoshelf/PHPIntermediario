@@ -15,7 +15,7 @@
         $id_contato = (int) $_GET["id"];
      
         // Seleciona este contato, caso ele realmente seja do usuário logado
-        $query = sprintf("
+        $stm = $GLOBALS['pdo']->prepare("
             SELECT 
                 id, 
                 nome, 
@@ -24,16 +24,18 @@
             FROM 
                 contatos
             WHERE
-                id_usuario=%d AND
-                id=%d", $_SESSION["usuario_id"], $id_contato);
+                id_usuario=:id_usuario AND
+                id=:id");
+        $stm->bindValue(':id_usuario', $_SESSION["usuario_id"]);
+        $stm->bindValue(':id', $id_contato);
 
         // Executa a Query
-        $resultado = mysqli_query($_conexao, $query);  
+        $stm->execute();  
         
         // Retornou algum registro?
-        if( mysqli_num_rows($resultado)>0 ) {            
+        if($stm->rowCount() > 0 ) {            
             // Trata o resultado na forma de um array associativo
-            $contato = mysqli_fetch_assoc($resultado);            
+            $contato = $stm->fetch();            
         } else {
             // Não retornou nenhum registro, então volta para a index
             irPara("index.php");            
